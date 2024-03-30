@@ -13,7 +13,7 @@ class ID3:
         self.label_names = label_names
         self.target_attribute = target_attribute
         self.tree_root = None
-        self.used_features = set()
+        self.used_features = set()  # can ignore
         self.min_for_pruning = min_for_pruning
 
     @staticmethod
@@ -149,7 +149,9 @@ class ID3:
         #   - Recursively build the true, false branches.
         #   - Build the Question node which contains the best question with true_branch, false_branch as children
 
-        if len(np.unique(labels)) == 1:  # all samples have the same label
+        num_samples = rows.shape[0]
+        prune = num_samples <= self.min_for_pruning
+        if len(np.unique(labels)) == 1 or prune:  # all samples have the same label
             return Leaf(rows, labels)
 
         # check if need to handle case if no samples
@@ -185,7 +187,12 @@ class ID3:
             node = self.tree_root
 
         if isinstance(node, Leaf):
-            prediction = max(node.predictions, key=node.predictions.get)  # return majority label of samples in leaf
+            max_freq = max(node.predictions.values())
+            predictions = [cls for cls, freq in node.predictions.items() if freq == max_freq]
+            if len(predictions) == 1:
+                prediction = predictions[0]  # leaf has a majority label
+            else:
+                prediction = max(predictions)  # leaf has 50-50 split labels, so classify as positive 'M'
         else:  # node is DecisionNode
             if node.question.match(row):
                 prediction = self.predict_sample(row, node.true_branch)

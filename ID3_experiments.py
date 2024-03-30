@@ -4,6 +4,7 @@ from utils import *
 """
 Make the imports of python packages needed
 """
+from sklearn.model_selection import KFold
 
 """
 ========================================================================
@@ -27,7 +28,9 @@ def find_best_pruning_m(train_dataset: np.array, m_choices, num_folds=5):
         accuracies: The accuracies per fold for each M (list of lists).
     """
 
-    accuracies = []
+    k_fold = KFold(n_splits=num_folds, shuffle=True, random_state=random_gen)
+    accuracies = [[] for _ in m_choices]
+
     for i, m in enumerate(m_choices):
         model = ID3(label_names=attributes_names, min_for_pruning=m)
         # TODO:
@@ -38,9 +41,13 @@ def find_best_pruning_m(train_dataset: np.array, m_choices, num_folds=5):
         #  (note that then it won't be exactly k-fold CV since it will be a random split each iteration),
         #  or implement something else.
 
-        # ====== YOUR CODE: ======
-        raise NotImplementedError
-        # ========================
+        folds = create_train_validation_split(dataset=train_dataset, kf=k_fold)
+        for ds_train, ds_valid in folds:
+            x_train, y_train, x_valid, y_valid = get_dataset_split(ds_train, ds_valid, target_attribute)
+            model.fit(x_train, y_train)
+            y_pred = model.predict(x_valid)
+            acc = accuracy(y_valid, y_pred)
+            accuracies[i].append(acc)
 
     best_m_idx = np.argmax([np.mean(acc) for acc in accuracies])
     best_m = m_choices[best_m_idx]
@@ -82,14 +89,15 @@ def cross_validation_experiment(plot_graph=True):
     #  - Fit the tree on the training data set.
     #  - Test the model on the test set (evaluate the accuracy) and print the result.
 
-    best_m = None
-    accuracies = []
-    m_choices = []
+    m_choices = [10, 15, 20, 50, 100, 200, 300]
     num_folds = 5
 
     # ====== YOUR CODE: ======
     assert len(m_choices) >= 5, 'fill the m_choices list with  at least 5 different values for M.'
-    raise NotImplementedError
+
+    _, train_set, _ = load_data_set('ID3')
+
+    best_m, accuracies = find_best_pruning_m(train_set, m_choices, num_folds)
 
     # ========================
     accuracies_mean = np.array([np.mean(acc) * 100 for acc in accuracies])
@@ -120,11 +128,10 @@ def best_m_test(x_train, y_train, x_test, y_test, min_for_pruning):
     #  - Fit the tree on the training data set.
     #  - Test the model on the test set (evaluate the accuracy) and return the result.
 
-    acc = None
-
-    # ====== YOUR CODE: ======
-    raise NotImplementedError
-    # ========================
+    id3_tree = ID3(min_for_pruning=min_for_pruning)
+    id3_tree.fit(x_train, y_train)
+    y_pred = id3_tree.predict(x_test)
+    acc = accuracy(y_test, y_pred)
 
     return acc
 
@@ -141,8 +148,6 @@ if __name__ == '__main__':
     """
     formatted_print = True
     basic_experiment(*data_split, formatted_print)
-
-    exit(0)
 
     """
        cross validation experiment
